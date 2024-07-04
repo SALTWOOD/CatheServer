@@ -78,6 +78,100 @@ namespace CatheServer.Modules.ApiRoutes
 
                 if (user == null)
                 {
+                    throw new ClientRequestInvalidException($"User not found.");
+                }
+                if (!Utils.EqualsAll(passwordHash, user.Password))
+                {
+                    throw new ClientRequestInvalidException($"Password incorrect.");
+                }
+
+                string jwtToken = user.GenerateJwtToken(CatheApiServer.rsa);
+
+                response = new HttpResponseEntity
+                {
+                    StatusCode = 200,
+                    Data = new
+                    {
+                        user = user,
+                        token = jwtToken
+                    }
+                };
+
+                return response;
+            }));
+            app.MapGet("/api/user/verify", (context) => Utils.HttpResponseWrapper(context, async () =>
+            {
+                HttpResponseEntity? response = null;
+                var content = await Utils.GetBodyContent(context);
+
+                string token = (string)content["token"];
+                string username = (string)content["username"];
+
+                bool isValid = UserEntity.VerifyJwtToken(CatheApiServer.rsa, token, username, out Exception? ex);
+
+                response = new HttpResponseEntity
+                {
+                    StatusCode = isValid ? 200 : 401,
+                    Message = isValid ? "success" : "failed",
+                    Error = new Error
+                    {
+                        Message = ex?.Message,
+                        Type = ex?.GetType().FullName
+                    }
+                };
+
+                return response;
+            }));
+        }
+
+        public static void RegisterApiSave(ref WebApplication app, DatabaseHandler database)
+        {
+            app.MapPost("/api/save/upload/song", (context) => Utils.HttpResponseWrapper(context, async () =>
+            {
+                HttpResponseEntity? response = null;
+                var content = await Utils.GetBodyContent(context);
+
+                string token = (string)content["token"];
+                string username = (string)content["username"];
+
+                UserEntity.VerifyJwtToken(CatheApiServer.rsa, token, username, out Exception? ex);
+                if (ex != null) throw ex;
+
+                UserEntity? user = database.QueryByIndex<UserEntity>("username", username).FirstOrDefault();
+                if (user == null) throw new ClientRequestInvalidException("User not found.");
+
+                response = new HttpResponseEntity
+                {
+                    StatusCode = 200,
+                    Data = new
+                    {
+                        user = new
+                        {
+                            id = user.Id,
+                            username = username,
+                            password = user.Password,
+                            email = user.Email,
+                            uuid = user.Uuid
+                        }
+                    }
+                };
+
+                return response;
+            }));
+            app.MapGet("/api/user/login", (context) => Utils.HttpResponseWrapper(context, async () =>
+            {
+                HttpResponseEntity? response = null;
+                var content = await Utils.GetBodyContent(context);
+
+                string password = (string)content["password"];
+                string username = (string)content["username"];
+
+                byte[] passwordHash = SHA512.HashData(Encoding.UTF8.GetBytes(password));
+
+                UserEntity? user = database.QueryByIndex<UserEntity>("username", username).FirstOrDefault();
+
+                if (user == null)
+                {
                     throw new ClientRequestInvalidException($"User \"{username}\" not found.");
                 }
                 if (!Utils.EqualsAll(passwordHash, user.Password))
