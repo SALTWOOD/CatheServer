@@ -16,21 +16,6 @@ namespace CatheServer
 {
     public static class Utils
     {
-        public static void HttpResponseWrapper(HttpContext context, Func<HttpResponseEntity> action)
-        {
-            HttpResponseEntity? response = null;
-            try
-            {
-                response = action.Invoke();
-                if (response == null) throw new Exception("\"response\" is null.");
-            }
-            catch (Exception ex)
-            {
-                ProcessException(ref response, ex);
-            }
-            SendResponse(context, response);
-        }
-
         public static async Task HttpResponseWrapper(HttpContext context, Func<Task<HttpResponseEntity?>> action)
         {
             HttpResponseEntity? response = null;
