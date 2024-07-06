@@ -4,7 +4,7 @@
     {
         static void Main(string[] args)
         {
-            CatheApiServer server = new CatheApiServer(8888);
+            CatheApiServer server = new CatheApiServer(25565);
             server.Start();
             server.Wait();
         }

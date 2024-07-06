@@ -1,5 +1,6 @@
 ﻿using CatheServer.Modules.Database;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -164,7 +165,7 @@ namespace CatheServer.Modules.ApiRoutes
 
         public static void RegisterRoot(ref WebApplication app, DatabaseHandler database)
         {
-            app.Map("/", (context) => Utils.HttpResponseWrapper(context, async () =>
+            app.Map("/", (HttpContext context) => Utils.HttpResponseWrapper(context, () =>
             {
                 HttpResponseEntity response = new HttpResponseEntity
                 {
@@ -178,8 +179,8 @@ namespace CatheServer.Modules.ApiRoutes
                     }
                 };
 
-                return response;
-            }));
+                return Task.FromResult<HttpResponseEntity?>(response);
+            }).Wait());
         }
 
         private static void CheckIfDuplicated(DatabaseHandler database, string username, string email)

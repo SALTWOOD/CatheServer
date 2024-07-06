@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 
 namespace CatheServer.Modules
 {
-    [JsonObject()]
-    public class HttpResponseEntity
+    [JsonObject]
+    public struct HttpResponseEntity
     {
         public HttpResponseEntity()
         {
@@ -32,8 +32,10 @@ namespace CatheServer.Modules
         public Error Error { get; set; } = new Error();
     }
 
-    public class Error
+    public struct Error
     {
+        public Error() { }
+
         [JsonProperty("type")]
         public string? Type { get; set; } = null;
 

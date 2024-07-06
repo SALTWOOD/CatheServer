@@ -10,6 +10,8 @@ using CatheServer.Modules;
 using CatheServer.Modules.Database;
 using System.Security.Cryptography;
 using CatheServer.Modules.ApiRoutes;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace CatheServer
 {
@@ -38,8 +40,52 @@ namespace CatheServer
                     configure.UseHttps(cert);
                 }
                 : configure => { });
+            });// 添加内存缓存服务
+            builder.Services.AddMemoryCache();
+            builder.Services.AddControllers();
+
+            this.app = builder.Build();
+
+            // 定义IP速率限制中间件
+            app.Use(async (context, next) =>
+            {
+                var memoryCache = context.RequestServices.GetRequiredService<IMemoryCache>();
+                var ipAddress = context.Connection.RemoteIpAddress?.ToString();
+                if (ipAddress == null)
+                {
+                    await next();
+                    return;
+                }
+                var cacheEntry = memoryCache.GetOrCreate(ipAddress, entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
+                    return new IpRateLimitInfo { Count = 0, IsBanned = false };
+                });
+
+                if (cacheEntry.Count > 10)
+                {
+                    if (!cacheEntry.IsBanned)
+                    {
+                        cacheEntry.IsBanned = true;
+                        memoryCache.Set(ipAddress, cacheEntry, new MemoryCacheEntryOptions
+                        {
+                            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+                        });
+                    }
+
+                    context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                    await context.Response.WriteAsync("You are banned for 10 minutes due to exceeding the rate limit.");
+                    Utils.LogAccess(context, context.Response.StatusCode);
+                    return;
+                }
+
+                cacheEntry.Count++;
+                memoryCache.Set(ipAddress, cacheEntry);
+                await next();
             });
-            app = builder.Build();
+
+            // 配置路由和控制器
+            app.UseRouting();
             database = new DatabaseHandler();
 
             ConfigureMaps();

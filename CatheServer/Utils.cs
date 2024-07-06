@@ -20,26 +20,52 @@ namespace CatheServer
         {
             HttpResponseEntity? response = null;
             context.Response.Headers.Append("Content-Type", "application/json");
+            response = ProcessResponse(() => action.Invoke().Result, response);
+            await SendResponse(context, response);
+            LogAccess(context, response);
+        }
+
+        public static async Task HttpResponseWrapper(HttpContext context, Func<HttpResponseEntity?> action)
+        {
+            HttpResponseEntity? response = null;
+            context.Response.Headers.Append("Content-Type", "application/json");
+            response = ProcessResponse(action, response);
+            await SendResponse(context, response);
+            LogAccess(context, response);
+        }
+
+        private static HttpResponseEntity? ProcessResponse(Func<HttpResponseEntity?> action, HttpResponseEntity? response)
+        {
             try
             {
-                response = await action.Invoke();
+                response = action.Invoke();
                 if (response == null) throw new InternalServerException("\"response\" is null.");
             }
             catch (Exception ex)
             {
                 ProcessException(ref response, ex);
             }
-            SendResponse(context, response);
+
+            return response;
+        }
+
+        public static void LogAccess(HttpContext context, HttpResponseEntity? response)
+        {
             Logger.Instance.LogInfo($"[{context.Connection.RemoteIpAddress?.ToString()}] {context.Request.Method} {context.Request.Path} - {response?.StatusCode} ({context.Request.Headers.UserAgent.ToString()})");
         }
 
-        private static void SendResponse(HttpContext context, HttpResponseEntity? response)
+        public static void LogAccess(HttpContext context, int status)
         {
-            TryInvoke(async () =>
+            Logger.Instance.LogInfo($"[{context.Connection.RemoteIpAddress?.ToString()}] {context.Request.Method} {context.Request.Path} - {status} ({context.Request.Headers.UserAgent.ToString()})");
+        }
+
+        private static async ValueTask SendResponse(HttpContext context, HttpResponseEntity? response)
+        {
+            try
             {
                 if (response != null)
                 {
-                    context.Response.StatusCode = response.StatusCode;
+                    context.Response.StatusCode = response.Value.StatusCode;
                     await context.Response.Body.WriteAsync(
                         Encoding.UTF8.GetBytes(
                             JsonConvert.SerializeObject(response)
@@ -65,7 +91,8 @@ namespace CatheServer
                         )
                     );
                 }
-            });
+            }
+            catch { }
         }
 
         private static void ProcessException(ref HttpResponseEntity? response, Exception ex)
