@@ -59,7 +59,8 @@ namespace CatheServer.Modules.Database
             // 设置JWT的Claims
             var claims = new[]
             {
-                new Claim(ClaimTypes.Email, this.Email)
+                new Claim(ClaimTypes.Email, this.Email),
+                new Claim("uuid", this.Uuid)
             };
 
             // 创建JWT的Token

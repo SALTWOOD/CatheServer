@@ -22,7 +22,7 @@ namespace CatheServer
 
         static CatheApiServer()
         {
-            rsa = RSA.Create(8192);
+            rsa = RSA.Create(4096);
             if (File.Exists("rsa.priv")) rsa.ImportPkcs8PrivateKey(File.ReadAllBytes("rsa.priv"), out _);
             using Stream file = File.Create("rsa.priv");
             file.Write(rsa.ExportPkcs8PrivateKey());
