@@ -15,6 +15,8 @@ namespace CatheServer.Modules.ApiRoutes
         public static void RegisterRoutes(ref WebApplication app, DatabaseHandler database)
         {
             RegisterApiUser(ref app, database);
+            RegisterApiSave(ref app, database);
+            RegisterRoot(ref app, database);
         }
 
         public static void RegisterApiUser(ref WebApplication app, DatabaseHandler database)
@@ -158,59 +160,21 @@ namespace CatheServer.Modules.ApiRoutes
 
                 return response;
             }));
-            app.MapGet("/api/user/login", (context) => Utils.HttpResponseWrapper(context, async () =>
+        }
+
+        public static void RegisterRoot(ref WebApplication app, DatabaseHandler database)
+        {
+            app.Map("/", (context) => Utils.HttpResponseWrapper(context, async () =>
             {
-                HttpResponseEntity? response = null;
-                var content = await Utils.GetBodyContent(context);
-
-                string password = (string)content["password"];
-                string username = (string)content["username"];
-
-                byte[] passwordHash = SHA512.HashData(Encoding.UTF8.GetBytes(password));
-
-                UserEntity? user = database.QueryByIndex<UserEntity>("username", username).FirstOrDefault();
-
-                if (user == null)
+                HttpResponseEntity response = new HttpResponseEntity
                 {
-                    throw new ClientRequestInvalidException($"User \"{username}\" not found.");
-                }
-                if (!Utils.EqualsAll(passwordHash, user.Password))
-                {
-                    throw new ClientRequestInvalidException($"Password incorrect.");
-                }
-
-                string jwtToken = user.GenerateJwtToken(CatheApiServer.rsa);
-
-                response = new HttpResponseEntity
-                {
-                    StatusCode = 200,
-                    Data = new
-                    {
-                        user = user,
-                        token = jwtToken
-                    }
-                };
-
-                return response;
-            }));
-            app.MapGet("/api/user/verify", (context) => Utils.HttpResponseWrapper(context, async () =>
-            {
-                HttpResponseEntity? response = null;
-                var content = await Utils.GetBodyContent(context);
-
-                string token = (string)content["token"];
-                string username = (string)content["username"];
-
-                bool isValid = UserEntity.VerifyJwtToken(CatheApiServer.rsa, token, username, out Exception? ex);
-
-                response = new HttpResponseEntity
-                {
-                    StatusCode = isValid ? 200 : 401,
-                    Message = isValid ? "success" : "failed",
+                    StatusCode = 404,
+                    Data = null,
+                    Message = "failed",
                     Error = new Error
                     {
-                        Message = ex?.Message,
-                        Type = ex?.GetType().FullName
+                        Type = typeof(ClientRequestInvalidException).FullName,
+                        Message = "The requested URL was not found on the server."
                     }
                 };
 

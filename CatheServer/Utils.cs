@@ -23,13 +23,14 @@ namespace CatheServer
             try
             {
                 response = await action.Invoke();
-                if (response == null) throw new Exception("\"response\" is null.");
+                if (response == null) throw new InternalServerException("\"response\" is null.");
             }
             catch (Exception ex)
             {
                 ProcessException(ref response, ex);
             }
             SendResponse(context, response);
+            Logger.Instance.LogInfo($"[{context.Connection.RemoteIpAddress?.ToString()}] {context.Request.Method} {context.Request.Path} - {response?.StatusCode} {{{context.Request.Headers.UserAgent.ToString()}}})");
         }
 
         private static void SendResponse(HttpContext context, HttpResponseEntity? response)
