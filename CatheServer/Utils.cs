@@ -30,7 +30,7 @@ namespace CatheServer
                 ProcessException(ref response, ex);
             }
             SendResponse(context, response);
-            Logger.Instance.LogInfo($"[{context.Connection.RemoteIpAddress?.ToString()}] {context.Request.Method} {context.Request.Path} - {response?.StatusCode} {{{context.Request.Headers.UserAgent.ToString()}}})");
+            Logger.Instance.LogInfo($"[{context.Connection.RemoteIpAddress?.ToString()}] {context.Request.Method} {context.Request.Path} - {response?.StatusCode} ({context.Request.Headers.UserAgent.ToString()})");
         }
 
         private static void SendResponse(HttpContext context, HttpResponseEntity? response)
